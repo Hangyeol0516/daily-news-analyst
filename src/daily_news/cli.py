@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .analysis import rank_stories
 from .feeds import FeedError, fetch_feed, load_sources, parse_feed
+from .storage import NewsStore
 
 
 def render(stories, generated_at: datetime, article_count: int) -> str:
@@ -40,6 +42,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--hours", type=int, default=24)
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument("--timezone", default="Asia/Seoul")
+    parser.add_argument("--database", type=Path, default=Path("data/news.db"))
     args = parser.parse_args(argv)
 
     now = datetime.now(ZoneInfo(args.timezone))
@@ -55,11 +58,30 @@ def main(argv: list[str] | None = None) -> int:
             errors.append(str(error))
 
     cutoff = now - timedelta(hours=args.hours)
-    stories = rank_stories([article for article in articles if article.published_at >= cutoff], now=now)[:args.limit]
+    try:
+        with NewsStore(args.database) as store:
+            run_id = store.start_run(now)
+            inserted_count = store.save_articles(articles, collected_at=now)
+            recent_articles = store.recent_articles(cutoff)
+            stories = rank_stories(recent_articles, now=now)[:args.limit]
+            store.finish_run(
+                run_id,
+                completed_at=datetime.now(ZoneInfo(args.timezone)),
+                fetched_count=len(articles),
+                inserted_count=inserted_count,
+                story_count=len(stories),
+                errors=errors,
+            )
+    except sqlite3.Error as error:
+        parser.error(f"database error: {error}")
+
     output = args.output or Path("reports") / f"{now.date().isoformat()}.md"
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(render(stories, now, len(articles)), encoding="utf-8")
-    print(f"Wrote {len(stories)} stories from {len(articles)} articles to {output}")
+    print(
+        f"Wrote {len(stories)} stories from {len(articles)} fetched articles "
+        f"({inserted_count} new) to {output}"
+    )
     for error in errors:
         print(f"warning: {error}")
     return 1 if errors and not articles else 0

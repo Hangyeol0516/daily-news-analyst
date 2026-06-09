@@ -12,6 +12,8 @@ RSS 피드에서 기사를 수집하고, 비슷한 기사를 하나의 이야기
 - 출처 수와 최신성 기반 중요도 점수
 - 출처 링크를 포함한 Markdown 리포트
 - 일부 피드 실패 시 나머지 피드 계속 처리
+- SQLite 기사 저장 및 URL 기준 중복 수집 방지
+- 수집 실행별 신규 기사 수와 오류 이력 기록
 
 ## 실행
 
@@ -27,7 +29,12 @@ daily-news
 기본 출력은 `reports/YYYY-MM-DD.md`입니다.
 
 ```bash
-daily-news --feeds config/feeds.json --hours 24 --limit 10 --timezone Asia/Seoul
+daily-news \
+  --feeds config/feeds.json \
+  --database data/news.db \
+  --hours 24 \
+  --limit 10 \
+  --timezone Asia/Seoul
 ```
 
 ## 테스트
@@ -38,7 +45,6 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 
 ## 다음 단계
 
-- SQLite 기사 및 실행 이력 저장
 - 한국어 군집 품질 개선
 - LLM 기반 출처 인용 요약
 - 카테고리별 브리핑

@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "daily-news-analyst"
+version = "0.1.0"
+description = "Collect RSS feeds and generate a daily ranked news briefing."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Park Hangyeol" }]
+
+[project.scripts]
+daily-news = "daily_news.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
